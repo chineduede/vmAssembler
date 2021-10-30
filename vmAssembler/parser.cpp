@@ -41,11 +41,7 @@ void Parser::advance()
     mCommand.str("");
     mCommand << mNxtCommand.str();
     if (hasMoreLines())
-    {
         __advance(mNxtCommand);
-        std::cout << "Current command: " << returnCommand() << ' '
-            << "Next command: " << mNxtCommand.str() << '\n';
-    }
 }
 
 Parser::Command Parser::commandType()
@@ -78,16 +74,14 @@ std::string Parser::arg1()
 {
     Command cmdType{ commandType() };
     std::string cmd;
-    std::string arg1;
+    std::string arg1{};
     mCommand >> cmd >> arg1;
     if (cmdType == Command::C_ARITHMETIC_BI ||
         cmdType == Command::C_ARITHMETIC_UN ||
         cmdType == Command::C_COMPARISON)
         return cmd;
-    if (cmdType == Command::C_POP || cmdType == Command::C_PUSH)
-        return arg1;
     else
-        return "";
+        return arg1;
 }
 
 int Parser::arg2()

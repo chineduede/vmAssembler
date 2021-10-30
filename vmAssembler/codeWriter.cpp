@@ -10,6 +10,24 @@
 
 namespace fs = std::filesystem;
 
+
+constexpr char REG_D = 'D';
+constexpr char REG_A = 'A';
+constexpr char REG_M = 'M';
+constexpr char AT = '@';
+constexpr char EQUALS_TO = '=';
+constexpr char BRAC_OP = '(';
+constexpr char BRAC_CLE = ')';
+constexpr char ZERO = '0';
+
+const char* REG_SP = "SP";
+const char* REG_R13 = "R13";
+const char* REG_R14 = "R14";
+const char* SEG_HIDDEN = "hidden";
+
+
+
+
 CodeWriter::CodeWriter(const std::string& name)
     : mFile{ fs::path(name).replace_extension(".asm").string() }
     , mName{ fs::path(name).filename().replace_extension().string() }
@@ -21,26 +39,26 @@ CodeWriter::CodeWriter(const std::string& name)
 void CodeWriter::writeArithmetic(const std::string& cmd)
 {
     const Parser::Command cmdType{ utils::commandMap[cmd] };
-
+    
     if (cmdType == Parser::Command::C_ARITHMETIC_BI)
     {
-        writePushPop(Parser::Command::C_POP, "hidden", 1);
-        writePushPop(Parser::Command::C_POP, "hidden", 0, true);
+        writePushPop(Parser::Command::C_POP, SEG_HIDDEN, 1);
+        writePushPop(Parser::Command::C_POP, SEG_HIDDEN, 0, true);
         implementArith(utils::symbolMap[cmd]);
-        writePushPop(Parser::Command::C_PUSH, "hidden", 0, true);
+        writePushPop(Parser::Command::C_PUSH, SEG_HIDDEN, 0, true);
     }
     else if (cmdType == Parser::Command::C_ARITHMETIC_UN)
     {
-        writePushPop(Parser::Command::C_POP, "hidden", 0, true);
+        writePushPop(Parser::Command::C_POP, SEG_HIDDEN, 0, true);
         implementArith(utils::symbolMap[cmd], false);
-        writePushPop(Parser::Command::C_PUSH, "hidden", 0, true);
+        writePushPop(Parser::Command::C_PUSH, SEG_HIDDEN, 0, true);
     }
     else if (cmdType == Parser::Command::C_COMPARISON)
     {
-        writePushPop(Parser::Command::C_POP, "hidden", 1);
-        writePushPop(Parser::Command::C_POP, "hidden", 0, true);
+        writePushPop(Parser::Command::C_POP, SEG_HIDDEN, 1);
+        writePushPop(Parser::Command::C_POP, SEG_HIDDEN, 0, true);
         implementArith("-", true, utils::symbolMap[cmd]);
-        writePushPop(Parser::Command::C_PUSH, "hidden", 0, true);
+        writePushPop(Parser::Command::C_PUSH, SEG_HIDDEN, 0, true);
     }
 }
 
@@ -51,29 +69,29 @@ void CodeWriter::writePushPop(Parser::Command cmd, const std::string& segment, i
     if (cmd == Parser::Command::C_POP)
     {
         // Decrement stack point
-        wrtBaseCmd("SP", 'M', 'M', '-', '1');
+        wrtBaseCmd(REG_SP, REG_M, REG_M, '-', '1');
 
         if (found != utils::segmentMap.end())
         {
             accessIdxAddrOrLdMem(index, found->second);
-            wrtBaseCmd("R13", 'M', 'D');
+            wrtBaseCmd(REG_R13, REG_M, REG_D);
 
-            wrtBaseCmd("SP", 'A', 'M');
-            wrtBaseCmd("", 'D', 'M', false);
+            wrtBaseCmd(REG_SP, REG_A, REG_M);
+            wrtBaseCmd("", REG_D, REG_M, false);
 
-            wrtBaseCmd("R13", 'A', 'M');
-            wrtBaseCmd("", 'M', 'D', false);
+            wrtBaseCmd(REG_R13, REG_A, REG_M);
+            wrtBaseCmd("", REG_M, REG_D, false);
         }
 
         else
         {
-            wrtBaseCmd("SP", 'A', 'M');
-            wrtBaseCmd("", 'D', 'M', false);
+            wrtBaseCmd(REG_SP, REG_A, REG_M);
+            wrtBaseCmd("", REG_D, REG_M, false);
 
             if (!ld_frm_d)
             {
                 std::string temp{ directQualName(index, segment) };
-                wrtBaseCmd(temp, 'M', 'D');
+                wrtBaseCmd(temp, REG_M, REG_D);
             }
         }
     }
@@ -82,23 +100,23 @@ void CodeWriter::writePushPop(Parser::Command cmd, const std::string& segment, i
         if (found != utils::segmentMap.end())
         {
             accessIdxAddrOrLdMem(index, found->second);
-            wrtBaseCmd("", 'A', 'D', false);
-            wrtBaseCmd("", 'D', 'M', false);
+            wrtBaseCmd("", REG_A, REG_D, false);
+            wrtBaseCmd("", REG_D, REG_M, false);
         }
         else if (!ld_frm_d)
         {
             std::string temp{ directQualName(index, segment) };
 
             if (segment == "constant")
-                wrtBaseCmd(index, 'D', 'A');
+                wrtBaseCmd(index, REG_D, REG_A);
             else
-                wrtBaseCmd(temp, 'D', 'M');
+                wrtBaseCmd(temp, REG_D, REG_M);
         }
 
-        wrtBaseCmd("SP", 'A', 'M');
-        wrtBaseCmd("", 'M', 'D', false);
+        wrtBaseCmd(REG_SP, REG_A, REG_M);
+        wrtBaseCmd("", REG_M, REG_D, false);
         // Increment stack pointer
-        wrtBaseCmd("SP", 'M', 'M', '+', '1');
+        wrtBaseCmd(REG_SP, REG_M, REG_M, '+', '1');
     }
 }
 
@@ -108,42 +126,42 @@ void CodeWriter::close() { mFile.close(); }
 void CodeWriter::wrtBaseCmd(const std::string& seg, char to, char from, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << seg << '\n';
-    mFile << to << '=' << from << '\n';
+        mFile << AT << seg << '\n';
+    mFile << to << EQUALS_TO << from << '\n';
 }
 
 void CodeWriter::wrtBaseCmd(int seg, char to, char op1, char op, char op2, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << seg << '\n';
-    mFile << to << '=' << op1 << op << op2 << '\n';
+        mFile << AT << seg << '\n';
+    mFile << to << EQUALS_TO << op1 << op << op2 << '\n';
 }
 
 void CodeWriter::wrtBaseCmd(int segment, char to, char from, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << segment << '\n';
-    mFile << to << '=' << from << '\n';
+        mFile << AT << segment << '\n';
+    mFile << to << EQUALS_TO << from << '\n';
 }
 void CodeWriter::wrtBaseCmd(const std::string& seg, char to, char op1, char op, char op2, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << seg << '\n';
-    mFile << to << '=' << op1 << op << op2 << '\n';
+        mFile << AT << seg << '\n';
+    mFile << to << EQUALS_TO << op1 << op << op2 << '\n';
 }
 
 void CodeWriter::wrtBaseCmd(const std::string& seg, char comp_val, const std::string& comp_op, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << seg << '\n';
+        mFile << AT << seg << '\n';
     mFile << comp_val << ';' << comp_op << '\n';
 }
 
 void CodeWriter::wrtBaseCmd(const std::string& seg, char to, char op, char op1, bool ld_seg)
 {
     if (ld_seg)
-        mFile << '@' << seg << '\n';
-    mFile << to << '=' << op << op1 << '\n';
+        mFile << AT << seg << '\n';
+    mFile << to << EQUALS_TO << op << op1 << '\n';
 }
 // end of overloaded functions
 
@@ -151,38 +169,38 @@ void CodeWriter::wrtBaseCmd(const std::string& seg, char to, char op, char op1, 
 void CodeWriter::accessIdxAddrOrLdMem(int index, const std::string& seg)
 {
     if (!index)
-        wrtBaseCmd(seg, 'D', 'M');
+        wrtBaseCmd(seg, REG_D, REG_M);
     else
     {
-        wrtBaseCmd(index, 'D', 'A');
-        wrtBaseCmd(seg, 'D', 'M', '+', 'D');
+        wrtBaseCmd(index, REG_D, REG_A);
+        wrtBaseCmd(seg, REG_D, REG_M, '+', REG_D);
     }
 }
 
 void CodeWriter::implementArith(const std::string& sign, bool binary_op, const std::string& cmp_sign)
 {
     static int comp_sign_counter{};
-    std::string r13{ "R13" };
+    std::string r13{ REG_R13 };
 
     if (binary_op)
-        wrtBaseCmd("R14", 'D', 'D', sign.front(), 'M');
+        wrtBaseCmd(REG_R14, REG_D, REG_D, sign.front(), REG_M);
     else
-        wrtBaseCmd("", 'D', sign.front(), 'D', false);
+        wrtBaseCmd("", REG_D, sign.front(), REG_D, false);
 
     if (!cmp_sign.empty())
     {
         std::string compLabel{ "COMP_" + cmp_sign + "_" + std::to_string(comp_sign_counter) };
         std::string exitCompLabel{ "EXIT_" + compLabel };
 
-        wrtBaseCmd(compLabel, 'D', cmp_sign);
+        wrtBaseCmd(compLabel, REG_D, cmp_sign);
 
-        wrtBaseCmd(r13, 'D', '0');
+        wrtBaseCmd(r13, REG_D, ZERO);
 
-        wrtBaseCmd(exitCompLabel, '0', "JMP");
+        wrtBaseCmd(exitCompLabel, ZERO, "JMP");
 
-        mFile << '(' << compLabel << ')' << '\n';
-        wrtBaseCmd(r13, 'D', '-', '1');
-        mFile << '(' << exitCompLabel << ')' << '\n';
+        mFile << BRAC_OP << compLabel << BRAC_CLE << '\n';
+        wrtBaseCmd(r13, REG_D, '-', '1');
+        mFile << BRAC_OP << exitCompLabel << BRAC_CLE << '\n';
 
         comp_sign_counter++;
     }
@@ -197,7 +215,7 @@ std::string CodeWriter::directQualName(int index, const std::string& segment)
         temp = { mName + '.' + std::to_string(index) };
     else if (segment == "pointer")
         temp = (index) ? std::string{ "THAT" } : std::string{ "THIS" };
-    else if (segment == "hidden")
+    else if (segment == SEG_HIDDEN)
         temp = { 'R' + std::to_string(13 + index) };
     else
         temp = {};
@@ -213,19 +231,42 @@ void CodeWriter::opt_assignment_op(int const_val, const std::string& seg, int in
         accessIdxAddrOrLdMem(index, found->second);
     else
     {
-        wrtBaseCmd(const_val, 'D', 'A');
+        wrtBaseCmd(const_val, REG_D, REG_A);
         if (tempName.empty())
         {
-            wrtBaseCmd(found->second, 'A', 'M');
-            wrtBaseCmd("", 'M', 'D', false);
+            wrtBaseCmd(found->second, REG_A, REG_M);
+            wrtBaseCmd("", REG_M, REG_D, false);
         }
         else
-            wrtBaseCmd(tempName, 'M', 'D');
+            wrtBaseCmd(tempName, REG_M, REG_D);
         return;
     }
 
-    wrtBaseCmd("R13", 'M', 'D');
-    wrtBaseCmd(const_val, 'D', 'A');
-    wrtBaseCmd("R13", 'A', 'M');
-    wrtBaseCmd("", 'M', 'D', false);
+    wrtBaseCmd(REG_R13, REG_M, REG_D);
+    wrtBaseCmd(const_val, REG_D, REG_A);
+    wrtBaseCmd(REG_R13, REG_A, REG_M);
+    wrtBaseCmd("", REG_M, REG_D, false);
+}
+
+void CodeWriter::writeLabel(const std::string& label)
+{
+    mFile << BRAC_OP << label << BRAC_CLE << '\n';
+}
+
+void CodeWriter::writeGoto(const std::string& label)
+{
+    wrtBaseCmd(label, ZERO, "JMP");
+}
+
+void CodeWriter::writeIf(const std::string& label)
+{
+    wrtBaseCmd(REG_SP, REG_M, REG_M, '-', '1');
+    wrtBaseCmd(REG_SP, REG_A, REG_M);
+    wrtBaseCmd("", REG_D, REG_M, false);
+    wrtBaseCmd(label, REG_D, "JNE");
+}
+
+void CodeWriter::setFileName(const std::string& file_name)
+{
+    mName = file_name;
 }

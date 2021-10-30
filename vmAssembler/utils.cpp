@@ -66,6 +66,9 @@ namespace utils
         { "and", Parser::Command::C_ARITHMETIC_BI },
         { "or", Parser::Command::C_ARITHMETIC_BI },
         { "not", Parser::Command::C_ARITHMETIC_UN },
+        { "label", Parser::Command::C_LABEL },
+        { "if-goto", Parser::Command::C_IF },
+        { "goto", Parser::Command::C_GOTO },
     };
 
     std::map<std::string, std::string> symbolMap{

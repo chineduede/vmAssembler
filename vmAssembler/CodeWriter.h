@@ -16,6 +16,15 @@ public:
     */
     void writeArithmetic(const std::string& cmd);
 
+
+    /*
+    * Implements unconditional goto jump, conditional goto jump
+    * and inserts labels in the assembly stream.
+    */
+    void writeGoto(const std::string& label);
+    void writeLabel(const std::string& label);
+    void writeIf(const std::string& label);
+
     /*
     * Implements the push and pop syntax.
     */
@@ -31,6 +40,8 @@ public:
     * Closes the file after writing.
     */
     void close();
+
+    void setFileName(const std::string& file_name);
 
     /*
     * Writes the stack instruction to file as a comment.

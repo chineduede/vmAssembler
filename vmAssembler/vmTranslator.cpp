@@ -22,19 +22,36 @@ void translateVMFile(const std::string& name)
     {
         parser.advance();
         auto cmd{ parser.commandType() };
+        std::string arg1{};
 
-        if (cmd == Parser::Command::C_ARITHMETIC_BI ||
+        if (cmd != Parser::Command::C_RETURN)
+            arg1 = parser.arg1();
+
+        if (cmd == Parser::Command::C_GOTO)
+        {
+            cwriter.writeComment(parser.returnCommand());
+            cwriter.writeGoto(arg1);
+        }
+        else if (cmd == Parser::Command::C_IF)
+        {
+            cwriter.writeComment(parser.returnCommand());
+            cwriter.writeIf(arg1);
+        }
+        else if (cmd == Parser::Command::C_LABEL)
+        {
+            cwriter.writeLabel(arg1);
+        }
+
+        else if (cmd == Parser::Command::C_ARITHMETIC_BI ||
             cmd == Parser::Command::C_ARITHMETIC_UN ||
             cmd == Parser::Command::C_COMPARISON)
         {
-            auto arg1{ parser.arg1() };
             cwriter.writeComment(parser.returnCommand());
             cwriter.writeArithmetic(arg1);
         }
         else if (cmd == Parser::Command::C_PUSH ||
             cmd == Parser::Command::C_POP)
         {
-            auto arg1{ parser.arg1() };
             auto arg2{ parser.arg2() };
 
             if (arg1 == "constant" && parser.peekNxtCommandType() == Parser::Command::C_POP)
@@ -61,6 +78,8 @@ void translateVMFile(const std::string& name)
         }
     }
     cwriter.writeInfiniteLoop();
+
+    std::cout << "Finished Translating " << fs::path(name).filename().string() << '\n';
 }
 
 void translate_VM_files(const std::string& f)
