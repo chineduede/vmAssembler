@@ -21,9 +21,9 @@ public:
     * Implements unconditional goto jump, conditional goto jump
     * and inserts labels in the assembly stream.
     */
-    void writeGoto(const std::string& label);
-    void writeLabel(const std::string& label);
-    void writeIf(const std::string& label);
+    void writeGoto(const std::string& label, bool add_prefix = true);
+    void writeLabel(const std::string& label, bool add_prefix = true);
+    void writeIf(const std::string& label, bool add_prefix = true);
 
     /*
     * Implements the push and pop syntax.
@@ -41,8 +41,25 @@ public:
     */
     void close();
 
+    /*
+    * Changes the currently interpreted .vm file
+    */
     void setFileName(const std::string& file_name);
 
+    /*
+    * Generates a function into hack assembly
+    */
+    void writeFunction(const std::string& func_name, int nVars);
+
+    /*
+    * Implements the returning of a function
+    */
+    void writeReturn();
+
+    /*
+    * Generates assembly instructions for call command
+    */
+    void writeCall(const std::string& func_name, int nVars);
     /*
     * Writes the stack instruction to file as a comment.
     */
@@ -50,8 +67,10 @@ public:
 
     /*
     * Ends the whole program by writing an infinite loop.
+    * (INFINITE_LOOP)\n@INFINITE_LOOP\n0;JMP\
     */
-    inline void writeInfiniteLoop() { mFile << "(INFINITE_LOOP)\n@INFINITE_LOOP\n0;JMP"; }
+
+    inline void writeInfiniteLoop() { mFile << "\n"; }
 
 private:
     /*
@@ -65,11 +84,21 @@ private:
     std::string mName;
 
     /*
+    * The name of the current function being processed
+    */
+    std::string currFunctionName;
+
+    /*
     * Push constant to the stack or access
     * an indexed address from where LCL, ARG,
     * THIS. THAT points to.
     */
     void accessIdxAddrOrLdMem(int index, const std::string& seg);
+
+    /*
+    * Initializes and bootstraps the assembly file
+    */
+    void init();
 
     /*
     * Generates identifiers for static variables by concatenating
@@ -93,6 +122,11 @@ private:
     * Implements a binary operation on two operands.
     */
     void implementArith(const std::string& sign, bool binary = true, const std::string& cmp_sign = "");
+
+    void __push(const char* segment, bool ret_addr = false);
+    void __push(const std::string& segment);
+    void __restorePointer(const char* segment, int index);
+    std::string __gen_label_name(const std::string& label, bool add_prefix);
 
 };
 

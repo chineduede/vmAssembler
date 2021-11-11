@@ -69,6 +69,9 @@ namespace utils
         { "label", Parser::Command::C_LABEL },
         { "if-goto", Parser::Command::C_IF },
         { "goto", Parser::Command::C_GOTO },
+        { "return", Parser::Command::C_RETURN },
+        { "function", Parser::Command::C_FUNCTION },
+        { "call", Parser::Command::C_CALL },
     };
 
     std::map<std::string, std::string> symbolMap{

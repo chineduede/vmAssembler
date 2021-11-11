@@ -11,49 +11,57 @@
 
 namespace fs = std::filesystem;
 
-void translateVMFile(const std::string& name)
+void translateVMFile(const std::string& name, CodeWriter& cwriter)
 {
     Parser parser{ name };
-    CodeWriter cwriter{ name };
 
     std::cout << "Translating " << fs::path(name).filename().string() << '\n';
 
     while (parser.hasMoreLines())
     {
         parser.advance();
-        auto cmd{ parser.commandType() };
+        Parser::Command cmd{ parser.commandType() };
         std::string arg1{};
 
         if (cmd != Parser::Command::C_RETURN)
             arg1 = parser.arg1();
 
-        if (cmd == Parser::Command::C_GOTO)
+        switch (cmd)
         {
+            int arg2;
+        case Parser::Command::C_CALL:
+            arg2 = parser.arg2();
+            cwriter.writeComment(parser.returnCommand());
+            cwriter.writeCall(arg1, arg2);
+            break;
+        case Parser::Command::C_GOTO:
             cwriter.writeComment(parser.returnCommand());
             cwriter.writeGoto(arg1);
-        }
-        else if (cmd == Parser::Command::C_IF)
-        {
+            break;
+        case Parser::Command::C_IF:
             cwriter.writeComment(parser.returnCommand());
             cwriter.writeIf(arg1);
-        }
-        else if (cmd == Parser::Command::C_LABEL)
-        {
+            break;
+        case Parser::Command::C_LABEL:
             cwriter.writeLabel(arg1);
-        }
-
-        else if (cmd == Parser::Command::C_ARITHMETIC_BI ||
-            cmd == Parser::Command::C_ARITHMETIC_UN ||
-            cmd == Parser::Command::C_COMPARISON)
-        {
+            break;
+        case Parser::Command::C_FUNCTION:
+            arg2 = parser.arg2();
+            cwriter.writeFunction(arg1, arg2);
+            break;
+        case Parser::Command::C_RETURN:
+            cwriter.writeComment(parser.returnCommand());
+            cwriter.writeReturn();
+            break;
+        case Parser::Command::C_ARITHMETIC_BI:
+        case Parser::Command::C_ARITHMETIC_UN:
+        case Parser::Command::C_COMPARISON:
             cwriter.writeComment(parser.returnCommand());
             cwriter.writeArithmetic(arg1);
-        }
-        else if (cmd == Parser::Command::C_PUSH ||
-            cmd == Parser::Command::C_POP)
-        {
-            auto arg2{ parser.arg2() };
-
+            break;
+        case Parser::Command::C_PUSH:
+        case Parser::Command::C_POP:
+            arg2 = parser.arg2();
             if (arg1 == "constant" && parser.peekNxtCommandType() == Parser::Command::C_POP)
             {
                 // This is a straight assignment syntax of assigning a
@@ -75,29 +83,35 @@ void translateVMFile(const std::string& name)
                 cwriter.writeComment(parser.returnCommand());
                 cwriter.writePushPop(cmd, arg1, arg2);
             }
+            break;
+        case Parser::Command::C_NOT_IMPLEMENTED:
+        default:
+            break;
         }
     }
     cwriter.writeInfiniteLoop();
-
     std::cout << "Finished Translating " << fs::path(name).filename().string() << '\n';
 }
 
 void translate_VM_files(const std::string& f)
 {
     std::vector<std::string> files{};
+    std::string fName{};
 
     if (fs::is_directory(fs::absolute(f)))
     {
+        fName = fs::absolute(f).string() + "\\" + fs::path(f).replace_extension(".asm").string();
         std::cout << "Finding '.vm' files in current directory..." << '\n' << '\n';
 
-        for (const auto& entry : fs::recursive_directory_iterator(f))
+        for (const auto& entry : fs::directory_iterator(f))
         {
             if (!entry.is_directory() && utils::isVMFile(fs::path(entry).filename().string()))
                 files.push_back(fs::absolute(entry).string());
         }
     }
-    else
+    else if (fs::exists(f))
     {
+        fName = fs::path(f).replace_extension(".asm").string();
         if (utils::isVMFile(fs::path(f).filename().string()))
             files.push_back(fs::absolute(f).string());
     }
@@ -108,6 +122,19 @@ void translate_VM_files(const std::string& f)
         return;
     }
 
-    for (const auto& g : files)
-        translateVMFile(g);
+    try
+    {
+        CodeWriter cwriter{ fName };
+
+        for (const auto& g : files)
+        {
+            cwriter.setFileName(g);
+            translateVMFile(g, cwriter);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << e.what() << '\n';
+        return;
+    }
 }
